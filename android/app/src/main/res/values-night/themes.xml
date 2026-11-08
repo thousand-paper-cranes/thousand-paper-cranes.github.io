@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="paper_bg">#FF14151E</color>
+
+    <style name="Theme.ThousandCranes" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/paper_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
