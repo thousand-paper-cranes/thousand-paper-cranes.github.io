@@ -215,7 +215,7 @@ const S0=[P([[150,30],[270,150],[150,270],[30,150]])];
 const SB=[P([[150,60],[150,240],[60,150]],0), P([[150,60],[240,150],[150,240]],.07)];
 const BB=[P([N,C,E],0), P([N,E2,C],.07), P([E,C,B],.03), P([C,E2,B],.1)];
 const NS=[P([N,M,F],0,'wingL'), P([N,F2,M],.07,'wingR'), P([F,M,B],.03,'legL'), P([M,F2,B],.1,'legR')];
-const n1=norm(sub(B,[142,135])), t1=norm([-0.62,-0.78]), d1=add(n1,t1);
+const n1=norm(sub(B,[142,135])), t1=norm([-0.38,-0.92]), d1=add(n1,t1);
 const NECK_A=[142,135], NECK_B=add(NECK_A,mul(d1,60));
 const TAIL_A=[158,135], TAIL_B=add(TAIL_A,mul([-d1[0],d1[1]],60));
 const TIP=refl(B,NECK_A,NECK_B,1), U=norm(sub(TIP,NECK_A)), Q=sub(TIP,mul(U,24)), HD=add(U,norm([-0.92,0.4]));
@@ -240,15 +240,15 @@ const STEPS=[
   {t:'아래 양옆 모서리를 가운데 선에 맞춰 접어요', s:'한쪽만 끌어도 양쪽이 같이 접혀요', folds:[{a:B,b:E,toward:[60,150]},{a:B,b:E2,toward:[240,150]}]},
   {t:'아래 꼭짓점을 위로 들어 올려 길게 펼쳐 접어요', s:'꽃잎 접기라고 불러요', folds:[{a:[0,112.8],b:[300,112.8],toward:[150,230]}], keepBehind:true},
   {t:'종이를 뒤집어요', s:'반대쪽도 같은 모양으로 접혀요', flip:true, after:BB},
-  {t:'아래쪽 양옆을 가운데 선에 맞춰 가늘게 접어요', folds:[{a:B,b:F,toward:E},{a:B,b:F2,toward:E2}], after:NS},
-  {t:'왼쪽 다리를 안쪽으로 접어 올려 목을 만들어요', folds:[{a:NECK_A,b:NECK_B,toward:B}], only:['legL']},
-  {t:'오른쪽 다리도 접어 올려 꼬리를 만들어요', folds:[{a:TAIL_A,b:TAIL_B,toward:B}], only:['legR']},
-  {t:'목 끝을 살짝 접어 머리를 만들어요', folds:[{a:Q,b:add(Q,mul(HD,40)),toward:TIP,bound:{a:QB,b:add(QB,[-U[1],U[0]]),toward:TIP}}], only:['legL']},
+  {t:'아래쪽 양옆을 가운데 선에 맞춰 가늘게 접어요', s:'뒷면도 똑같이 가늘게 접어요', folds:[{a:B,b:F,toward:E},{a:B,b:F2,toward:E2}], after:NS},
+  {t:'왼쪽 다리를 날개 사이로 뒤집어 올려 목을 만들어요', s:'안쪽으로 뒤집어 접기예요', folds:[{a:NECK_A,b:NECK_B,toward:B}], only:['legL']},
+  {t:'오른쪽 다리도 같은 방법으로 올려 꼬리를 만들어요', folds:[{a:TAIL_A,b:TAIL_B,toward:B}], only:['legR']},
+  {t:'목 끝을 안쪽으로 뒤집어 꺾어 머리를 만들어요', folds:[{a:Q,b:add(Q,mul(HD,40)),toward:TIP,bound:{a:QB,b:add(QB,[-U[1],U[0]]),toward:TIP}}], only:['legL']},
   {t:'겹친 날개를 앞뒤로 내려 펼치면 완성이에요', s:'점선이 날개가 꺾이는 자리예요', spread:true, after:SIDE}
 ];
 
 function prepare(state, step){
-  if(step.spread) return {stat:[],mov:[],arrows:[{from:[150,8],to:[150,62]}],lines:[[F,F2]]};
+  if(step.spread) return {stat:[],mov:[],arrows:[{from:[150,12],to:[150,84]}],lines:[[[0,M[1]],[300,M[1]]]]};
   const stat=[], mov=[];
   if(step.flip){
     const bb=bbox(state), cx=(bb.x0+bb.x1)/2, cy=(bb.y0+bb.y1)/2;
@@ -305,25 +305,33 @@ const CRANE=STATES[STATES.length-1];
 /* ---------- 3D: 날개 펼치기와 완성 학 돌려보기 ---------- */
 // 마지막 직전 상태는 날개 두 장이 겹쳐 위로 선 학을 옆에서 본 모습이다.
 // 날개는 F–F2 선(경첩)을 따라 앞뒤로 꺾이고, 나머지(몸통·목·꼬리·머리)는 제자리에 있다.
-const HINGE=F[1], SPREAD=1.42, VIEW_YAW=0.55, VIEW_PITCH=0.78, C3=[150,62];
+const HINGE=M[1], SPREAD=1.55, VIEW_YAW=-0.55, VIEW_PITCH=0.55, C3=[150,62];
 const MODEL3=(()=>{
   const flat=STATES[STATES.length-2], out=[];
   flat.forEach(p=>{
-    if(p.tag==='wingL'||p.tag==='wingR'){
+    const onWing = p.tag==='wingL'||p.tag==='wingR'||(!p.back && p.pts.every(q=>q[0]>112&&q[0]<188));
+    if(onWing){
       const up=clip(p.pts,[0,HINGE],[300,HINGE],1*Math.sign(side([150,0],[0,HINGE],[300,HINGE])));
       const dn=clip(p.pts,[0,HINGE],[300,HINGE],-1*Math.sign(side([150,0],[0,HINGE],[300,HINGE])));
       if(ok(up)){ out.unshift({pts:up,shade:p.shade,wing:-1}); out.push({pts:up,shade:p.shade,wing:1}); }
       if(ok(dn)) out.push({pts:dn,shade:p.shade,wing:0});
     } else out.push({pts:p.pts,shade:p.shade,wing:0});
   });
+  // 날개를 펼치면 등 가운데가 부풀어 오른다 (사진의 가운데 네모)
+  const cx=150, w=17, h=11, dz=15;
+  const a=[cx,HINGE-h,0], f=[cx-w,HINGE,0], bk=[cx+w,HINGE,0], zp=[cx,HINGE,dz], zn=[cx,HINGE,-dz];
+  [[f,zp,a],[zp,bk,a],[bk,zn,a],[zn,f,a]].forEach(t=>out.push({p3:t,shade:.02,wing:0,puff:1}));
   return out.map((q,i)=>({...q,order:i}));
 })();
 function pose3(phi,yaw,pitch){
   const cy=Math.cos(yaw), sy=Math.sin(yaw), cp=Math.cos(pitch), sp=Math.sin(pitch);
   const L=norm3([-0.55,-0.6,0.58]);
-  return MODEL3.map(m=>{
-    const P=m.pts.map(([x,y])=>{
-      let X=x-C3[0], Y=y-C3[1], Z=0;
+  return MODEL3.filter(m=>!m.puff||phi>0.05).map(m=>{
+    const src=m.p3 ? m.p3 : m.pts.map(([x,y])=>[x,y,0]);
+    const g=phi/SPREAD;
+    const P=src.map(([x,y,z])=>{
+      let X=x-C3[0], Y=y-C3[1], Z=z;
+      if(m.p3){ Y=HINGE-C3[1]-(HINGE-y)*g; Z=z*g; }
       if(m.wing){ const d=HINGE-y; Y=HINGE-C3[1]-d*Math.cos(phi); Z=m.wing*d*Math.sin(phi); }
       const x1=X*cy+Z*sy, z1=-X*sy+Z*cy;
       const y2=Y*cp+z1*sp, z2=-Y*sp+z1*cp;
@@ -338,7 +346,7 @@ function pose3(phi,yaw,pitch){
 function sub3(a,b){ return [a[0]-b[0],a[1]-b[1],a[2]-b[2]]; }
 function cross3(a,b){ return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]; }
 function norm3(a){ const l=Math.hypot(a[0],a[1],a[2])||1; return [a[0]/l,a[1]/l,a[2]/l]; }
-const R3=Math.max(...MODEL3.flatMap(m=>m.pts.map(([x,y])=>Math.hypot(x-C3[0],y-C3[1]))));
+const R3=Math.max(...MODEL3.filter(m=>m.pts).flatMap(m=>m.pts.map(([x,y])=>Math.hypot(x-C3[0],y-C3[1]))));
 function fit3(){ const s=Math.min(1.7,128/R3); return {s,str:`translate(${150-C3[0]*s}px,${150-C3[1]*s}px) scale(${s})`}; }
 
 /* ---------- color helpers ---------- */
@@ -432,12 +440,12 @@ function computeLayout(){
     layout.push({x:best.x,y:best.y,rot:(rng()-.5)*0.9,mir:rng()<.5,s:.9+rng()*.22});
   }
 }
-const CB=bbox(CRANE), CW=CB.x1-CB.x0, CH=CB.y1-CB.y0;
+const JAR_CRANE=pose3(SPREAD,-0.55,0.45), CB=bbox(JAR_CRANE), CW=CB.x1-CB.x0, CH=CB.y1-CB.y0;
 function drawCrane(ctx,x,y,key,sc,rotA,mir,alpha=1){
   const col=COLORS[key].c, k=26/CW*sc;
   ctx.save(); ctx.translate(x,y); ctx.rotate(rotA); ctx.scale(mir?-k:k,k); ctx.translate(-(CB.x0+CW/2),-(CB.y0+CH*.62));
   ctx.globalAlpha=alpha; ctx.lineJoin='round'; ctx.lineWidth=1.4/k; ctx.strokeStyle=edgeCol(col);
-  for(const p of CRANE){ ctx.beginPath(); p.pts.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.closePath(); ctx.fillStyle=shadeCol(col,p.shade,p.back); ctx.fill(); ctx.stroke(); }
+  for(const p of JAR_CRANE){ ctx.beginPath(); p.pts.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1])); ctx.closePath(); ctx.fillStyle=shadeCol(col,p.shade,p.back); ctx.fill(); ctx.stroke(); }
   ctx.restore();
 }
 function cssv(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
