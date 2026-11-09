@@ -26,7 +26,7 @@
   --accent:#8D9CFF; --accent-ink:#121426; --label:#EDE6D3; --label-ink:#2E2920; --lid:#8C6E4E;
   --glass:rgba(160,180,230,.07); --glass-edge:rgba(190,200,240,.40); --shine:rgba(255,255,255,.16); color-scheme:dark }
 html,body{height:100%}
-body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;word-break:keep-all;
   padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;overscroll-behavior:none}
 textarea{-webkit-user-select:text;user-select:text}
 button{font:inherit;color:inherit;cursor:pointer}
@@ -418,13 +418,14 @@ function buildBase(upTo){
   x.restore();
   return c;
 }
-let dropAnim=null;
+let dropAnim=null, dropToken=0;
 function setupJar(dropLast){
   jarCanvas=$('#jar'); if(!jarCanvas) return;
   const dpr=Math.min(3,window.devicePixelRatio||1), w=jarCanvas.clientWidth, h=w*JH/JW;
   jarCanvas.width=Math.round(w*dpr); jarCanvas.height=Math.round(h*dpr);
   jarCtx=jarCanvas.getContext('2d');
   computeLayout();
+  cancelAnimationFrame(dropAnim); dropToken++;
   const n=S.cranes.length, settled = dropLast ? n-1 : n;
   baseCache=buildBase(settled);
   if(dropLast && n>0) startDrop(n-1); else paintJar();
@@ -439,8 +440,9 @@ function paintJar(extra){
 function startDrop(i){
   const [tx,ty]=craneXY(i), l=layout[i], sy=40, dur=900, t0=performance.now();
   const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  cancelAnimationFrame(dropAnim);
+  cancelAnimationFrame(dropAnim); const tok=++dropToken;
   const step=now=>{
+    if(tok!==dropToken) return;
     let t=reduce?1:Math.min(1,(now-t0)/dur);
     // ease with small bounce
     const e = t<.8 ? Math.pow(t/.8,2) : 1-Math.sin((t-.8)/.2*Math.PI)*0.05;
