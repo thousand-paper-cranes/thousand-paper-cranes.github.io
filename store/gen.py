@@ -2,13 +2,13 @@ import asyncio, base64
 from playwright.async_api import async_playwright
 APP='file:///home/claude/thousand-paper-cranes.github.io/android/app/src/main/assets/www/index.html'
 FONTS='/home/claude/thousand-paper-cranes.github.io/android/app/src/main/assets/www/fonts/'
-SIDE=[([[128,184],[192,186],[224,72]],.2),([[182,200],[200,193],[266,92]],.12),([[96,198],[150,180],[150,218]],.04),([[150,180],[208,196],[150,218]],.13),([[102,199],[122,204],[54,84]],.07),([[54,84],[63,90],[30,100]],0),([[104,190],[150,56],[132,190]],.09),([[132,190],[150,56],[178,190]],0)]
+SIDE=[([[104,192],[196,192],[214,72]],.2),([[104,192],[150,192],[150,220]],.04),([[150,192],[196,192],[150,220]],.13),([[196,192],[179.9,201.8],[266,92]],.12),([[104,192],[120.1,201.8],[54,84]],.07),([[54,84],[59,93],[30,99]],0),([[104,192],[144,58],[128,192]],.09),([[128,192],[144,58],[196,192]],0)]
 def crane_svg(hexc='#DE4A3F'):
     r,g,b=int(hexc[1:3],16),int(hexc[3:5],16),int(hexc[5:7],16)
     ps=''
     for pts,s in SIDE:
         k=1-s; ps+=f'<path d="M{"L".join(f"{x},{y}" for x,y in pts)}Z" fill="rgb({int(r*k)},{int(g*k)},{int(b*k)})" stroke="rgba({int(r*.45)},{int(g*.45)},{int(b*.45)},.35)" stroke-width="1" stroke-linejoin="round"/>'
-    return f'<svg viewBox="26 50 244 172" xmlns="http://www.w3.org/2000/svg">{ps}</svg>'
+    return f'<svg viewBox="24 50 250 176" xmlns="http://www.w3.org/2000/svg">{ps}</svg>'
 f64=lambda n: base64.b64encode(open(FONTS+n+'.woff2','rb').read()).decode()
 NATIVE="window.Native={isDebug:()=>false,vibrate:()=>{},showRewardedAd:()=>setTimeout(()=>window.onAdResult('reward'),200)};"
 async def shot(pg,name):

@@ -74,6 +74,10 @@ button:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{outline:2px
 details.test{border:1px dashed var(--line);border-radius:14px;padding:8px 12px;color:var(--muted);font-size:13px}
 details.test summary{cursor:pointer}
 .testrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.modepick{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px}
+.modepick span{font-size:12.5px;margin-right:2px}
+.modepick button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;font-size:13px;color:var(--ink)}
+.modepick button[aria-checked="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
 .testrow button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:12.5px}
 
 /* onboarding */
@@ -98,6 +102,7 @@ details.test summary{cursor:pointer}
 .stagewrap{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
 #stage{width:min(100%,400px);aspect-ratio:1;touch-action:none;user-select:none;cursor:grab}
 #stage:active{cursor:grabbing}
+#stage:focus,#stage:focus-visible{outline:none}
 #stage g.world{transition:transform .45s cubic-bezier(.3,.7,.3,1)}
 #stage .appear{animation:appear .35s ease-out}
 @keyframes appear{from{opacity:.2}}
@@ -218,14 +223,15 @@ const QB=sub(Q,mul(U,9));
 
 // finished crane, seen from the side (wings up, neck with bent head on the left, tail on the right)
 const SIDE=[
-  P([[128,184],[192,186],[224,72]],.2,'farWing'),
-  P([[182,200],[200,193],[266,92]],.12,'tail'),
-  P([[96,198],[150,180],[150,218]],.04,'body'),
-  P([[150,180],[208,196],[150,218]],.13,'body'),
-  P([[102,199],[122,204],[54,84]],.07,'neck'),
-  P([[54,84],[63,90],[30,100]],0,'head'),
-  P([[104,190],[150,56],[132,190]],.09,'wing'),
-  P([[132,190],[150,56],[178,190]],0,'wing')
+  // 모든 조각이 꼭짓점을 공유한다: 날개 밑변 = 몸통 윗선(A~B), 목·꼬리는 몸통 아랫변에서 나온다
+  P([[104,192],[196,192],[214,72]],.2,'farWing'),
+  P([[104,192],[150,192],[150,220]],.04,'body'),
+  P([[150,192],[196,192],[150,220]],.13,'body'),
+  P([[196,192],[179.9,201.8],[266,92]],.12,'tail'),
+  P([[104,192],[120.1,201.8],[54,84]],.07,'neck'),
+  P([[54,84],[59,93],[30,99]],0,'head'),
+  P([[104,192],[144,58],[128,192]],.09,'wing'),
+  P([[128,192],[144,58],[196,192]],0,'wing')
 ];
 const STEPS=[
   {t:'색종이를 대각선으로 반 접어 세모를 만들어요', folds:[{a:[0,150],b:[300,150],toward:[150,60]}]},
@@ -238,10 +244,11 @@ const STEPS=[
   {t:'왼쪽 다리를 안쪽으로 접어 올려 목을 만들어요', folds:[{a:NECK_A,b:NECK_B,toward:B}], only:['legL']},
   {t:'오른쪽 다리도 접어 올려 꼬리를 만들어요', folds:[{a:TAIL_A,b:TAIL_B,toward:B}], only:['legR']},
   {t:'목 끝을 살짝 접어 머리를 만들어요', folds:[{a:Q,b:add(Q,mul(HD,40)),toward:TIP,bound:{a:QB,b:add(QB,[-U[1],U[0]]),toward:TIP}}], only:['legL']},
-  {t:'날개를 아래로 내려 펼치고 모양을 잡으면 완성이에요', s:'옆에서 보면 학의 모습이 나와요', rotate:[{tag:'wingL',c:M,ang:-0.42},{tag:'wingR',c:M,ang:0.42}], under:true, after:SIDE}
+  {t:'겹친 날개를 앞뒤로 내려 펼치면 완성이에요', s:'점선이 날개가 꺾이는 자리예요', spread:true, after:SIDE}
 ];
 
 function prepare(state, step){
+  if(step.spread) return {stat:[],mov:[],arrows:[{from:[150,8],to:[150,62]}],lines:[[F,F2]]};
   const stat=[], mov=[];
   if(step.flip){
     const bb=bbox(state), cx=(bb.x0+bb.x1)/2, cy=(bb.y0+bb.y1)/2;
@@ -295,6 +302,45 @@ function result(state,step){
 const STATES=[S0]; STEPS.forEach((st,i)=>STATES.push(result(STATES[i],st)));
 const CRANE=STATES[STATES.length-1];
 
+/* ---------- 3D: 날개 펼치기와 완성 학 돌려보기 ---------- */
+// 마지막 직전 상태는 날개 두 장이 겹쳐 위로 선 학을 옆에서 본 모습이다.
+// 날개는 F–F2 선(경첩)을 따라 앞뒤로 꺾이고, 나머지(몸통·목·꼬리·머리)는 제자리에 있다.
+const HINGE=F[1], SPREAD=1.42, VIEW_YAW=0.55, VIEW_PITCH=0.78, C3=[150,62];
+const MODEL3=(()=>{
+  const flat=STATES[STATES.length-2], out=[];
+  flat.forEach(p=>{
+    if(p.tag==='wingL'||p.tag==='wingR'){
+      const up=clip(p.pts,[0,HINGE],[300,HINGE],1*Math.sign(side([150,0],[0,HINGE],[300,HINGE])));
+      const dn=clip(p.pts,[0,HINGE],[300,HINGE],-1*Math.sign(side([150,0],[0,HINGE],[300,HINGE])));
+      if(ok(up)){ out.unshift({pts:up,shade:p.shade,wing:-1}); out.push({pts:up,shade:p.shade,wing:1}); }
+      if(ok(dn)) out.push({pts:dn,shade:p.shade,wing:0});
+    } else out.push({pts:p.pts,shade:p.shade,wing:0});
+  });
+  return out.map((q,i)=>({...q,order:i}));
+})();
+function pose3(phi,yaw,pitch){
+  const cy=Math.cos(yaw), sy=Math.sin(yaw), cp=Math.cos(pitch), sp=Math.sin(pitch);
+  const L=norm3([-0.55,-0.6,0.58]);
+  return MODEL3.map(m=>{
+    const P=m.pts.map(([x,y])=>{
+      let X=x-C3[0], Y=y-C3[1], Z=0;
+      if(m.wing){ const d=HINGE-y; Y=HINGE-C3[1]-d*Math.cos(phi); Z=m.wing*d*Math.sin(phi); }
+      const x1=X*cy+Z*sy, z1=-X*sy+Z*cy;
+      const y2=Y*cp+z1*sp, z2=-Y*sp+z1*cp;
+      return [x1,y2,z2];
+    });
+    const n=norm3(cross3(sub3(P[1],P[0]),sub3(P[2],P[0])));
+    const lit=Math.abs(n[0]*L[0]+n[1]*L[1]+n[2]*L[2]);
+    const depth=P.reduce((a,q)=>a+q[2],0)/P.length;
+    return {pts:P.map(q=>[C3[0]+q[0],C3[1]+q[1]]), shade:m.shade*.4+(1-lit)*.3, depth, order:m.order};
+  }).sort((a,b)=> (a.depth-b.depth) || (a.order-b.order));
+}
+function sub3(a,b){ return [a[0]-b[0],a[1]-b[1],a[2]-b[2]]; }
+function cross3(a,b){ return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]; }
+function norm3(a){ const l=Math.hypot(a[0],a[1],a[2])||1; return [a[0]/l,a[1]/l,a[2]/l]; }
+const R3=Math.max(...MODEL3.flatMap(m=>m.pts.map(([x,y])=>Math.hypot(x-C3[0],y-C3[1]))));
+function fit3(){ const s=Math.min(1.7,128/R3); return {s,str:`translate(${150-C3[0]*s}px,${150-C3[1]*s}px) scale(${s})`}; }
+
 /* ---------- color helpers ---------- */
 function hexRgb(h){ const n=parseInt(h.slice(1),16); return [n>>16&255,n>>8&255,n&255]; }
 function shadeCol(hex,s,back){ let [r,g,b]=hexRgb(hex); const k=1-Math.min(.6,s+(back?.12:0)); return `rgb(${r*k|0},${g*k|0},${b*k|0})`; }
@@ -344,9 +390,15 @@ function renderHome(){
       <button class="btn" id="foldBtn" ${S.papers.length?'':'disabled'}>학 접기</button>
       <button class="btn2" id="adBtn" ${adUsed?'disabled':''}>${adUsed?'오늘 추가 색종이를 받았어요':`광고 보고 색종이 ${AD_BONUS}장 더 받기`}</button>
     </section>
-    ${IS_DEBUG?`    <details class="test"><summary>테스트 도구 (디버그 빌드 전용)</summary>
-      <div class="testrow"><button id="tNext">다음 날로 넘기기</button><button id="t50">학 +50 바로 넣기</button><button id="t999">999마리까지 채우기</button><button id="tReset">처음부터 다시</button></div>
-      <p style="margin:8px 0 0">지금 기준 날짜: ${t} · 지금까지 접은 학 ${S.totalFolded}마리 (${S.totalFolded<GUIDED_COUNT?`${GUIDED_COUNT-S.totalFolded}마리 더 접으면 빠른 접기로 바뀌어요`:'빠른 접기 모드'})</p>
+    ${IS_DEBUG?`    <details class="test" open><summary>테스트 도구 (디버그 빌드 전용)</summary>
+      <div class="modepick" role="radiogroup" aria-label="접기 방식">
+        <span>접기 방식</span>
+        <button role="radio" data-m="auto" aria-checked="${!testMode}">자동</button>
+        <button role="radio" data-m="guided" aria-checked="${testMode==='guided'}">안내 모드 (11번)</button>
+        <button role="radio" data-m="fast" aria-checked="${testMode==='fast'}">빠른 접기 (7번)</button>
+      </div>
+      <div class="testrow"><button id="tPaper">색종이 +5</button><button id="tNext">다음 날로 넘기기</button><button id="t50">학 +50 바로 넣기</button><button id="t999">999마리까지 채우기</button><button id="tReset">처음부터 다시</button></div>
+      <p style="margin:8px 0 0">지금 기준 날짜: ${t} · 지금까지 접은 학 ${S.totalFolded}마리 · 다음 학은 <b>${guided()?'안내 모드':'빠른 접기'}</b>로 접어요${testMode?'':` (자동: ${GUIDED_COUNT}마리까지 안내 모드)`}</p>
     </details>`:''}
   </main>`;
   root.querySelectorAll('.sheet').forEach(b=>b.onclick=()=>{ selected=+b.dataset.i; renderHome(); });
@@ -354,6 +406,8 @@ function renderHome(){
   $('#adBtn').onclick=showAd;
   $('#archBtn').onclick=showArchive;
   if(IS_DEBUG){
+  root.querySelectorAll('.modepick button').forEach(b=>b.onclick=()=>{ testMode=b.dataset.m==='auto'?null:b.dataset.m; try{ testMode?localStorage.setItem('cranejar.testMode',testMode):localStorage.removeItem('cranejar.testMode'); }catch(e){} renderHome(); toast(testMode==='fast'?'다음 학은 빠른 접기로 접어요':testMode==='guided'?'다음 학은 안내 모드로 접어요':'접은 수에 따라 자동으로 정해요'); });
+  $('#tPaper').onclick=()=>{ for(let i=0;i<5;i++) S.papers.push(randColor()); save(); renderHome(); toast('색종이 5장을 넣었어요'); };
   $('#tNext').onclick=()=>{ S.dayOffset=(S.dayOffset||0)+1; save(); const g=grantDaily(); renderHome(); toast(g?'다음 날이에요. 오늘의 색종이 5장이 도착했어요':'다음 날이에요'); };
   $('#t50').onclick=()=>testAdd(50);
   $('#t999').onclick=()=>testAdd(999-S.cranes.length);
@@ -457,10 +511,14 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{ if(
 
 /* ---------- fold screen ---------- */
 let F_ = null; // fold session
-function guided(){ return S.totalFolded < GUIDED_COUNT; }
+let testMode=null; if(IS_DEBUG) try{ testMode=localStorage.getItem('cranejar.testMode'); }catch(e){}
+function guided(){ if(testMode==='guided') return true; if(testMode==='fast') return false; return S.totalFolded < GUIDED_COUNT; }
+// 빠른 접기에서 한 번 끌면 같이 접히는 단계 묶음 (11단계 → 7번)
+const FAST_GROUPS=[[0,1],[2],[3],[4,5],[6],[7,8],[9,10]];
+function groupOf(i){ return F_.groups.findIndex(g=>g.includes(i)); }
 function openFold(idx){
   const key=S.papers[idx]; if(!key) return;
-  F_={idx,key,step:0,state:STATES[0],prep:null,t:0,help:false,done:false};
+  F_={idx,key,step:0,state:STATES[0],prep:null,t:0,help:false,done:false,auto:false,groups: guided() ? STEPS.map((_,i)=>[i]) : FAST_GROUPS};
   const ov=document.createElement('div'); ov.className='overlay'; ov.id='fold'; ov.setAttribute('role','dialog'); ov.setAttribute('aria-label','종이학 접기');
   ov.innerHTML=`<div class="ftop"><button class="x" id="fx" aria-label="접기 그만두기">✕</button><div class="steps" id="fsteps"></div><span class="mode" id="fmode"></span><button class="qbtn" id="fq" aria-label="안내 보기" hidden>?</button></div>
     <div class="stagewrap"><svg id="stage" viewBox="0 0 300 300" tabindex="0" aria-label="종이 접기 화면. 안내선을 따라 끌거나 엔터를 눌러 접어요"><g class="world" id="world"><g id="paper"></g><g id="guides"></g></g></svg></div>
@@ -469,7 +527,8 @@ function openFold(idx){
   $('#fx').onclick=closeFold; $('#fq').onclick=()=>{ F_.help=!F_.help; renderGuide(); };
   const st=$('#stage');
   st.addEventListener('pointerdown',onDown); st.addEventListener('pointermove',onMove); st.addEventListener('pointerup',onUp); st.addEventListener('pointercancel',onUp);
-  st.addEventListener('keydown',e=>{ if((e.key==='Enter'||e.key===' ') && !F_.done){ e.preventDefault(); finishStep(); } });
+  st.addEventListener('keydown',e=>{ if(F_.done && /Arrow/.test(e.key)){ e.preventDefault(); if(e.key==='ArrowLeft') F_.yaw-=.2; if(e.key==='ArrowRight') F_.yaw+=.2; if(e.key==='ArrowUp') F_.pitch=Math.max(-0.5,F_.pitch-.12); if(e.key==='ArrowDown') F_.pitch=Math.min(1.2,F_.pitch+.12); drawPaper(); return; }
+    if((e.key==='Enter'||e.key===' ') && !F_.done && !F_.auto){ e.preventDefault(); finishStep(); } });
   beginStep(true);
 }
 function closeFold(){ const o=$('#fold'); if(o) o.remove(); F_=null; }
@@ -481,7 +540,7 @@ function fitTransform(state){
 function beginStep(first){
   const step=STEPS[F_.step];
   F_.prep = step ? prepare(F_.state,step) : null; F_.t=0;
-  const fit=fitTransform(F_.state); F_.scale=fit.s;
+  const fit=(step&&step.spread) ? fit3() : fitTransform(F_.state); F_.scale=fit.s;
   const w=$('#world'); w.style.transform=fit.str;
   if(first){ w.style.transition='none'; w.getBoundingClientRect(); w.style.transition=''; }
   drawPaper(); drawGuides(); renderGuide(); renderSteps();
@@ -489,12 +548,16 @@ function beginStep(first){
 function pieceSvg(p,col){ return `<path d="M${p.pts.map(q=>q[0].toFixed(1)+' '+q[1].toFixed(1)).join('L')}Z" fill="${shadeCol(col,p.shade,p.back)}" stroke="${edgeCol(col)}" stroke-width="1" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>`; }
 function drawPaper(appear){
   const col=COLORS[F_.key].c;
-  const pieces = F_.prep && F_.t>0 ? frame(F_.prep,F_.t,STEPS[F_.step].keepBehind,STEPS[F_.step].under) : F_.state;
+  const st=STEPS[F_.step];
+  let pieces;
+  if(F_.done) pieces=pose3(SPREAD,F_.yaw,F_.pitch);
+  else if(st && st.spread){ const e=F_.t; pieces=pose3(SPREAD*e, VIEW_YAW*e, VIEW_PITCH*e); }
+  else pieces = F_.prep && F_.t>0 ? frame(F_.prep,F_.t,st.keepBehind,st.under) : F_.state;
   const g=$('#paper'); g.innerHTML=pieces.map(p=>pieceSvg(p,col)).join('');
   g.classList.toggle('appear',!!appear); if(appear){ g.style.animation='none'; g.getBoundingClientRect(); g.style.animation=''; }
 }
 function drawGuides(){
-  const g=$('#guides'); if(!F_.prep||F_.done){ g.innerHTML=''; return; }
+  const g=$('#guides'); if(!F_.prep||F_.done||F_.auto){ g.innerHTML=''; return; }
   const sw=1/F_.scale, acc=cssv('--accent'), showHand=guided()||F_.help;
   let h='';
   F_.prep.lines.forEach(([a,b])=>{
@@ -517,30 +580,33 @@ function drawGuides(){
   });
   g.innerHTML=h;
 }
-function renderSteps(){ $('#fsteps').innerHTML=STEPS.map((_,i)=>`<i class="${i<F_.step||F_.done?'on':''}"></i>`).join(''); }
+function renderSteps(){ const gi=groupOf(F_.step); $('#fsteps').innerHTML=F_.groups.map((_,i)=>`<i class="${i<gi||F_.done?'on':''}"></i>`).join(''); }
 function renderGuide(){
   const gd=guided(), el=$('#fguide'), q=$('#fq'), col=COLORS[F_.key];
   $('#fmode').textContent = gd ? `안내 모드 · ${S.totalFolded+1}번째` : '빠른 접기';
   q.hidden = gd || F_.done;
   if(F_.done){ el.className='guide'; el.innerHTML=''; return; }
-  const st=STEPS[F_.step], chip=`<span class="paperchip"><i style="background:${col.c}"></i>${col.n} 색종이</span>`;
+  if(F_.auto) return;
+  const gi=groupOf(F_.step), grp=F_.groups[gi], st=STEPS[grp[0]], chip=`<span class="paperchip"><i style="background:${col.c}"></i>${col.n} 색종이</span>`;
   if(gd||F_.help){
     el.className='guide';
-    el.innerHTML=`<span class="num">${F_.step+1} / ${STEPS.length}단계</span><span class="txt">${st.t}</span>${st.s?`<span class="sub">${st.s}</span>`:''}${gd&&F_.step===0?'<span class="sub">점선을 기준으로 화살표 방향으로 종이를 끌어주세요</span>':''}`;
+    el.innerHTML=`<span class="num">${gi+1} / ${F_.groups.length}단계</span><span class="txt">${st.t}</span>${grp.length>1?`<span class="sub">끌고 나면 다음 단계까지 이어서 접혀요</span>`:(st.s?`<span class="sub">${st.s}</span>`:'')}${gd&&F_.step===0?'<span class="sub">점선을 기준으로 화살표 방향으로 종이를 끌어주세요</span>':''}`;
   } else {
-    el.className='guide quiet'; el.innerHTML=`<span class="txt">${F_.step+1} / ${STEPS.length}</span>${chip}`;
+    el.className='guide quiet'; el.innerHTML=`<span class="txt">${gi+1} / ${F_.groups.length}</span>${chip}`;
   }
 }
 let drag=null;
-function onDown(e){ if(!F_||F_.done||!F_.prep) return; drag={x:e.clientX,y:e.clientY}; e.currentTarget.setPointerCapture(e.pointerId); }
+function onDown(e){ if(F_&&F_.done){ drag={x:e.clientX,y:e.clientY,yaw:F_.yaw,pitch:F_.pitch,spin:true}; e.currentTarget.setPointerCapture(e.pointerId); return; }
+  if(!F_||F_.done||!F_.prep||F_.auto) return; drag={x:e.clientX,y:e.clientY}; e.currentTarget.setPointerCapture(e.pointerId); }
 function onMove(e){
   if(!drag) return;
+  if(drag.spin){ F_.yaw=drag.yaw+(e.clientX-drag.x)*0.012; F_.pitch=Math.max(-0.5,Math.min(1.2,drag.pitch+(e.clientY-drag.y)*0.008)); drawPaper(); return; }
   const rect=$('#stage').getBoundingClientRect(), k=300/rect.width/F_.scale;
   const d=[(e.clientX-drag.x)*k,(e.clientY-drag.y)*k];
   let p=0; F_.prep.arrows.forEach(a=>{ const v=sub(a.to,a.from), vv=dot(v,v); if(vv>1) p=Math.max(p,dot(d,v)/vv); });
   F_.t=Math.max(0,Math.min(1,p*1.15)); drawPaper();
 }
-function onUp(){ if(!drag) return; drag=null; if(F_.t>0.45) finishStep(); else animateT(0); }
+function onUp(){ if(!drag) return; if(drag.spin){ drag=null; return; } drag=null; if(F_.t>0.45) finishStep(); else animateT(0); }
 function animateT(target,cb){
   const from=F_.t, t0=performance.now(), dur=Math.max(120,Math.abs(target-from)*380);
   const f=now=>{ const k=Math.min(1,(now-t0)/dur), e=1-Math.pow(1-k,3); F_.t=from+(target-from)*e; drawPaper(); if(k<1) requestAnimationFrame(f); else cb&&cb(); };
@@ -551,17 +617,21 @@ function finishStep(){
   animateT(1,()=>{
     F_.state=result(F_.state,step); F_.step++;
     haptic(12);
-    if(F_.step>=STEPS.length){ completeCrane(); return; }
+    if(F_.step>=STEPS.length){ F_.auto=false; completeCrane(); return; }
+    // 같은 묶음의 다음 단계는 손을 떼도 이어서 접힌다
+    const chain = groupOf(F_.step)===groupOf(F_.step-1);
+    F_.auto = chain;
     beginStep(); drawPaper(!!step.after);
+    if(chain) setTimeout(()=>{ if(F_ && F_.auto) finishStep(); }, 160);
   });
 }
 function completeCrane(){
-  F_.done=true; F_.prep=null;
-  const fit=fitTransform(F_.state); F_.scale=fit.s; $('#world').style.transform=fit.str;
-  drawPaper(true); drawGuides(); renderSteps(); renderGuide();
+  F_.done=true; F_.prep=null; F_.yaw=VIEW_YAW; F_.pitch=VIEW_PITCH;
+  const fit=fit3(); F_.scale=fit.s; $('#world').style.transform=fit.str;
+  drawPaper(); drawGuides(); renderSteps(); renderGuide();
   const n=S.cranes.length+1, col=COLORS[F_.key];
   const el=$('#fguide'); el.className='done';
-  el.innerHTML=`<div class="guide"><span class="num">완성</span><span class="txt">${n}번째 학을 접었어요</span><span class="sub">${col.n} 학${col.rare?' · 드물게 나오는 색이에요':''}</span></div><button class="btn" id="putBtn">통에 넣기</button>`;
+  el.innerHTML=`<div class="guide"><span class="num">완성</span><span class="txt">${n}번째 학을 접었어요</span><span class="sub">${col.n} 학${col.rare?' · 드물게 나오는 색이에요':''} · 학을 잡고 돌려보세요</span></div><button class="btn" id="putBtn">통에 넣기</button>`;
   $('#putBtn').onclick=putInJar; $('#putBtn').focus();
 }
 function putInJar(){
@@ -572,7 +642,7 @@ function putInJar(){
   closeFold(); selected=0; renderHome(); setupJar(true);
   setTimeout(()=>{
     if(n>=GOAL) return showFinale();
-    if(MILESTONES[n]) toast(MILESTONES[n]); else if(wasGuided) toast('이제 익숙해졌죠? 다음부터는 빠른 접기로 접어요');
+    if(MILESTONES[n]) toast(MILESTONES[n]); else if(wasGuided) toast('이제 익숙해졌죠? 다음부터는 이어지는 단계를 한 번에 접는 빠른 접기예요');
   },950);
 }
 
