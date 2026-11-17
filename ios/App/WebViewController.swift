@@ -89,6 +89,28 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKScriptM
         decisionHandler(.allow)
     }
 
+    // 디버그 빌드 + CRANE_SELFTEST 환경 변수일 때만: 시뮬레이터에서 소원 적기 → 학 한 마리 접기 → 통에 넣기를 자동으로 해 본다
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        #if DEBUG
+        guard ProcessInfo.processInfo.environment["CRANE_SELFTEST"] == "1" else { return }
+        let js = """
+        (async function(){
+          const wait=ms=>new Promise(r=>setTimeout(r,ms));
+          await wait(1000);
+          const w=document.getElementById('wishIn');
+          if(w){ w.value='시뮬레이터 소원 테스트'; w.dispatchEvent(new Event('input')); document.getElementById('startBtn').click(); }
+          await wait(1200);
+          openFold(0);
+          await wait(800);
+          while(F_ && !F_.done){ if(!F_.auto) finishStep(); await wait(850); }
+          await wait(4000);
+          putInJar();
+        })();
+        """
+        webView.evaluateJavaScript(js, completionHandler: nil)
+        #endif
+    }
+
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         webView.reload()
     }
