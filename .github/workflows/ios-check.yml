@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -29,10 +29,35 @@ jobs:
           set -o pipefail
           xcodebuild build -project ThousandCranes.xcodeproj -scheme ThousandCranes \
             -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log | grep -E "error:|warning: unused|\*\* BUILD" || true
+            -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log | grep -E "error:|warning: unused|\*\* BUILD" || true
           if ! grep -q "BUILD SUCCEEDED" build.log; then
             msg=$(grep -E "error:" build.log | sort -u | head -n 40 | sed 's/%/%25/g' | awk '{printf "%s%%0A",$0}')
             echo "::error title=컴파일 실패::$msg"
             exit 1
           fi
           echo "::notice title=컴파일::성공"
+
+      - name: 시뮬레이터에서 실행해 화면 찍기
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devices'];print(next(x['udid'] for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')))")
+          xcrun simctl boot "$UDID"; xcrun simctl bootstatus "$UDID" -b >/dev/null
+          APP=$(ls -d build/dd/Build/Products/Debug-iphonesimulator/ThousandCranes.app)
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch "$UDID" com.ohsang.util.thousandcranes
+          sleep 8
+          mkdir -p shots
+          xcrun simctl io "$UDID" screenshot shots/1-launch.png
+          xcrun simctl ui "$UDID" appearance dark; sleep 2
+          xcrun simctl io "$UDID" screenshot shots/2-dark.png
+          xcrun simctl ui "$UDID" appearance light
+          xcrun simctl terminate "$UDID" com.ohsang.util.thousandcranes; sleep 1
+          xcrun simctl launch "$UDID" com.ohsang.util.thousandcranes; sleep 6
+          xcrun simctl io "$UDID" screenshot shots/3-relaunch.png
+          ls -la shots
+      - name: 화면을 ios-shots 브랜치에 올리기
+        run: |
+          cd shots
+          git init -q && git checkout -q -b ios-shots
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "iOS 시뮬레이터 화면 ${{ github.run_number }}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" ios-shots
