@@ -196,20 +196,24 @@ extension View {
 
 /// 잠금 화면용 작은 종이학 모양
 struct CraneGlyph: Shape {
+    // 옆에서 본 종이학 실루엣 (날개 위로, 목·머리 왼쪽, 꼬리 오른쪽). 0~1 좌표
+    private static let polys: [[(CGFloat, CGFloat)]] = [
+        [(0.314, 0.827), (0.703, 0.827), (0.780, 0.086)],
+        [(0.314, 0.827), (0.508, 0.827), (0.508, 1.000)],
+        [(0.508, 0.827), (0.703, 0.827), (0.508, 1.000)],
+        [(0.703, 0.827), (0.635, 0.888), (1.000, 0.210)],
+        [(0.314, 0.827), (0.382, 0.888), (0.102, 0.160)],
+        [(0.102, 0.160), (0.123, 0.216), (0.000, 0.253)],
+        [(0.314, 0.827), (0.483, 0.000), (0.415, 0.827)],
+        [(0.415, 0.827), (0.483, 0.000), (0.703, 0.827)]
+    ]
     func path(in r: CGRect) -> Path {
-        let w = r.width, h = r.height
-        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: r.minX + x * w, y: r.minY + y * h) }
         var p = Path()
-        p.move(to: pt(0.14, 0.62))
-        p.addLine(to: pt(0.02, 0.08))      // 목·머리
-        p.addLine(to: pt(0.0, 0.14))
-        p.addLine(to: pt(0.30, 0.56))
-        p.addLine(to: pt(0.50, 0.0))       // 날개
-        p.addLine(to: pt(0.62, 0.56))
-        p.addLine(to: pt(1.0, 0.16))       // 꼬리
-        p.addLine(to: pt(0.84, 0.66))
-        p.addLine(to: pt(0.50, 0.86))      // 몸통
-        p.closeSubpath()
+        for poly in Self.polys {
+            p.move(to: CGPoint(x: r.minX + poly[0].0 * r.width, y: r.minY + poly[0].1 * r.height))
+            for q in poly.dropFirst() { p.addLine(to: CGPoint(x: r.minX + q.0 * r.width, y: r.minY + q.1 * r.height)) }
+            p.closeSubpath()
+        }
         return p
     }
 }
@@ -238,7 +242,7 @@ struct CraneAccessoryView: View {
                 .stroke(style: StrokeStyle(lineWidth: 4, lineCap: .round))
                 .rotationEffect(.degrees(-90)).padding(3)
             VStack(spacing: 1) {
-                CraneGlyph().frame(width: 20, height: 15)
+                CraneGlyph().frame(width: 24, height: 17)
                 Text(state.wish.isEmpty ? "소원" : "\(count)")
                     .font(.system(size: count >= 100 ? 13 : 15, weight: .bold, design: .rounded))
                     .monospacedDigit()
@@ -251,7 +255,7 @@ struct CraneAccessoryView: View {
     /// 가로형: 소원 + 마릿수 + 진행 막대
     private var rectangular: some View {
         HStack(spacing: 8) {
-            CraneGlyph().frame(width: 26, height: 20)
+            CraneGlyph().frame(width: 30, height: 21)
             VStack(alignment: .leading, spacing: 2) {
                 Text(state.wish.isEmpty ? "천 마리 학" : state.wish)
                     .font(.system(size: 14, weight: .semibold)).lineLimit(1)
