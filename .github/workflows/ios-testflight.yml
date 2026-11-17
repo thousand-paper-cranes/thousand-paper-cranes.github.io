@@ -168,6 +168,9 @@ jobs:
           BID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP/Info.plist")
           GAD=$(/usr/libexec/PlistBuddy -c "Print :GADApplicationIdentifier" "$APP/Info.plist")
           echo "::notice title=앱 확인::$BID $VER ($BUILD) · AdMob $GAD"
+          FAM=$(/usr/libexec/PlistBuddy -c "Print :UIDeviceFamily" "$APP/Info.plist" | tr -d ' \n')
+          echo "::notice title=지원 기기::UIDeviceFamily $FAM (1=iPhone, 2=iPad)"
+          if printf '%s' "$FAM" | grep -q 2; then echo "::error title=iPad 포함::iPad가 지원 기기에 들어가 있어요"; exit 1; fi
           [ -f "$APP/www/index.html" ] && echo "::notice title=화면::www/index.html 포함" || { echo "::error title=화면 없음::www가 빠졌어요"; exit 1; }
           if [ -d "$APP/PlugIns/CraneWidget.appex" ]; then
             ENT=$(codesign -d --entitlements :- "$APP/PlugIns/CraneWidget.appex" 2>/dev/null | tr -d '\n\t ')
