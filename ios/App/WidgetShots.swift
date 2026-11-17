@@ -29,6 +29,27 @@ enum WidgetShots {
             ("medium-dark", full, .systemMedium, medium, .dark),
             ("medium-empty", empty, .systemMedium, medium, .light),
         ]
+        // 잠금 화면 모양으로 원형·가로형을 같이 그린다
+        for (name, state) in [("lock-327", full), ("lock-waiting", waiting), ("lock-empty", empty)] {
+            let lock = VStack(spacing: 6) {
+                Text("11월 17일 화요일").font(.system(size: 17, weight: .semibold))
+                Text("9:41").font(.system(size: 92, weight: .bold, design: .rounded))
+                HStack(spacing: 14) {
+                    CraneAccessoryView(state: state, family: .accessoryCircular).frame(width: 72, height: 72)
+                    CraneAccessoryView(state: state, family: .accessoryRectangular).frame(width: 170, height: 72)
+                }
+                .padding(.top, 2)
+            }
+            .foregroundStyle(.white)
+            .frame(width: 390, height: 300)
+            .background(LinearGradient(colors: [Color(hex: 0x2B3A67), Color(hex: 0x6B4E8A), Color(hex: 0xC97B84)], startPoint: .top, endPoint: .bottom))
+            .environment(\.colorScheme, .dark)
+            let r = ImageRenderer(content: lock)
+            r.scale = 3
+            if let img = r.uiImage, let png = img.pngData() {
+                try? png.write(to: docs.appendingPathComponent("widget-\(name).png"))
+            }
+        }
         for (name, state, family, size, scheme) in jobs {
             let view = CraneWidgetView(state: state, family: family)
                 .padding(16)

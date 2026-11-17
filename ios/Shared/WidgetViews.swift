@@ -190,3 +190,87 @@ extension View {
     }
 }
 
+
+
+// MARK: - 잠금 화면 위젯
+
+/// 잠금 화면용 작은 종이학 모양
+struct CraneGlyph: Shape {
+    func path(in r: CGRect) -> Path {
+        let w = r.width, h = r.height
+        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: r.minX + x * w, y: r.minY + y * h) }
+        var p = Path()
+        p.move(to: pt(0.14, 0.62))
+        p.addLine(to: pt(0.02, 0.08))      // 목·머리
+        p.addLine(to: pt(0.0, 0.14))
+        p.addLine(to: pt(0.30, 0.56))
+        p.addLine(to: pt(0.50, 0.0))       // 날개
+        p.addLine(to: pt(0.62, 0.56))
+        p.addLine(to: pt(1.0, 0.16))       // 꼬리
+        p.addLine(to: pt(0.84, 0.66))
+        p.addLine(to: pt(0.50, 0.86))      // 몸통
+        p.closeSubpath()
+        return p
+    }
+}
+
+struct CraneAccessoryView: View {
+    let state: CraneState
+    let family: WidgetFamily
+
+    private var count: Int { state.cranes.count }
+    private var frac: CGFloat { CGFloat(min(count, Shared.goal)) / CGFloat(Shared.goal) }
+
+    var body: some View {
+        switch family {
+        case .accessoryCircular: circular
+        case .accessoryRectangular: rectangular
+        default: inline
+        }
+    }
+
+    /// 원형: 천 마리까지 진행 링 + 학 + 마릿수
+    private var circular: some View {
+        ZStack {
+            Circle().fill(Color.white.opacity(0.14))
+            Circle().stroke(Color.white.opacity(0.25), lineWidth: 4).padding(3)
+            Circle().trim(from: 0, to: max(0.012, frac))
+                .stroke(style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .rotationEffect(.degrees(-90)).padding(3)
+            VStack(spacing: 1) {
+                CraneGlyph().frame(width: 20, height: 15)
+                Text(state.wish.isEmpty ? "소원" : "\(count)")
+                    .font(.system(size: count >= 100 ? 13 : 15, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .minimumScaleFactor(0.6)
+            }
+            .padding(.top, 2)
+        }
+    }
+
+    /// 가로형: 소원 + 마릿수 + 진행 막대
+    private var rectangular: some View {
+        HStack(spacing: 8) {
+            CraneGlyph().frame(width: 26, height: 20)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(state.wish.isEmpty ? "천 마리 학" : state.wish)
+                    .font(.system(size: 14, weight: .semibold)).lineLimit(1)
+                Text(state.wish.isEmpty ? "소원을 적고 첫 학을 접어요" : (state.paperWaiting ? "\(count) / 1000 · 색종이 도착" : "\(count) / 1000마리"))
+                    .font(.system(size: 12)).monospacedDigit().lineLimit(1).opacity(0.85)
+                GeometryReader { g in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.white.opacity(0.25))
+                        Capsule().frame(width: max(3, g.size.width * frac))
+                    }
+                }
+                .frame(height: 3)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 한 줄 (시계 위)
+    private var inline: some View {
+        Text(state.wish.isEmpty ? "천 마리 학" : "학 \(count) / 1000")
+    }
+}

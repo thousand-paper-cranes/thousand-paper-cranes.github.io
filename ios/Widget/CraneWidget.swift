@@ -34,7 +34,14 @@ struct JarProvider: TimelineProvider {
 struct CraneWidgetEntryView: View {
     @Environment(\.widgetFamily) private var family
     let entry: JarEntry
-    var body: some View { CraneWidgetView(state: entry.state, family: family) }
+    var body: some View {
+        switch family {
+        case .accessoryCircular, .accessoryRectangular, .accessoryInline:
+            CraneAccessoryView(state: entry.state, family: family).accessoryBackground()
+        default:
+            CraneWidgetView(state: entry.state, family: family)
+        }
+    }
 }
 
 @main
@@ -45,6 +52,16 @@ struct CraneWidget: Widget {
         }
         .configurationDisplayName("소원 유리통")
         .description("내가 접은 학이 쌓인 유리통과 남은 마릿수를 보여줘요.")
-        .supportedFamilies([.systemSmall, .systemMedium])
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular, .accessoryInline])
+    }
+}
+
+extension View {
+    @ViewBuilder func accessoryBackground() -> some View {
+        if #available(iOS 17.0, *) {
+            containerBackground(for: .widget) { Color.clear }
+        } else {
+            self
+        }
     }
 }

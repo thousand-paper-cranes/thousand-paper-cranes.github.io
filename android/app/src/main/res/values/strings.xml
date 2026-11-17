@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">천 마리 학</string>
+    <string name="widget_desc">학이 쌓인 소원 유리병과 마릿수</string>
 </resources>

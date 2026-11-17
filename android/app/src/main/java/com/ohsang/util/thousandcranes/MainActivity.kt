@@ -22,6 +22,11 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
+import com.ohsang.util.thousandcranes.widget.CraneState
+import com.ohsang.util.thousandcranes.widget.CraneWidget
+import org.json.JSONObject
 
 /**
  * 앱 화면은 assets/www/index.html (웹 프로토타입과 같은 접기·유리통 화면)을
@@ -88,6 +93,16 @@ class MainActivity : Activity() {
         ads = RewardedAds(this) { result -> sendAdResult(result) }
         ads.init()
 
+        // localStorage가 비어 있으면(재설치 후 기기 백업 복원 등) 앱에 남은 기록으로 되살린다
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            val backup = JSONObject.quote(CraneState.raw(this) ?: "")
+            WebViewCompat.addDocumentStartJavaScript(
+                web,
+                "try{var b=$backup; if(b && !localStorage.getItem('${CraneState.KEY_LS}')) localStorage.setItem('${CraneState.KEY_LS}', b);}catch(e){}",
+                setOf("https://appassets.androidplatform.net"),
+            )
+        }
+
         if (savedInstanceState != null) web.restoreState(savedInstanceState)
         else web.loadUrl("https://appassets.androidplatform.net/assets/www/index.html")
 
@@ -120,6 +135,7 @@ class MainActivity : Activity() {
         super.onResume()
         web.onResume()
         // 날짜가 바뀌었으면 페이지가 visibilitychange에서 오늘의 색종이를 지급한다
+        CraneWidget.updateAll(applicationContext)
     }
 
     override fun onPause() {
@@ -150,6 +166,13 @@ class MainActivity : Activity() {
                 getSystemService(VIBRATOR_SERVICE) as? Vibrator
             }
             runCatching { v?.vibrate(VibrationEffect.createOneShot(ms.coerceIn(5, 80).toLong(), 60)) }
+        }
+
+        /** 화면 상태를 앱에도 복사해 두고 위젯을 새로 그린다 */
+        @JavascriptInterface
+        fun saveState(json: String) {
+            CraneState.save(applicationContext, json)
+            CraneWidget.updateAll(applicationContext)
         }
 
         @JavascriptInterface

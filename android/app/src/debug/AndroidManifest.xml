@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- 디버그 빌드 전용: adb로 위젯 그림을 PNG로 뽑아 확인한다 -->
+        <receiver
+            android:name=".WidgetShotReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.ohsang.util.thousandcranes.WIDGET_SHOT" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>
