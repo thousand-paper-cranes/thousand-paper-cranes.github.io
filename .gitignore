@@ -21,3 +21,5 @@ DerivedData/
 # OS
 .DS_Store
 Thumbs.db
+ios/ThousandCranes.xcodeproj/
+ios/build/

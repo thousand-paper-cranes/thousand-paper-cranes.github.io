@@ -173,7 +173,7 @@ const KEY = 'cranejar.v1';
 let S;
 function fresh(){ return {wish:'',wishStart:0,cranes:[],papers:[],lastGrant:'',adDate:'',dayOffset:0,totalFolded:0,archive:[]}; }
 function load(){ try{ const j = JSON.parse(localStorage.getItem(KEY)); if(j && typeof j==='object') return Object.assign(fresh(), j);}catch(e){} return fresh(); }
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+function save(){ const j=JSON.stringify(S); try{ localStorage.setItem(KEY, j); }catch(e){} try{ if(NATIVE&&NATIVE.saveState) NATIVE.saveState(j); }catch(e){} }
 S = load();
 
 function today(){ const d = new Date(); d.setDate(d.getDate() + (S.dayOffset||0));

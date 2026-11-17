@@ -1,0 +1,38 @@
+name: iOS 컴파일 확인
+
+# 서명 없이 시뮬레이터용으로 빌드만 해서 코드가 컴파일되는지 본다 (Apple Secrets 없이도 돈다).
+on:
+  push:
+    branches: [main]
+    paths: ["ios/**", "android/app/src/main/assets/www/**", ".github/workflows/ios-check.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v5
+      - name: XcodeGen
+        run: |
+          brew install xcodegen >/dev/null
+          xcodegen generate
+          echo "::notice title=Xcode::$(xcodebuild -version | tr '\n' ' ')"
+      - name: 시뮬레이터 빌드
+        run: |
+          set -o pipefail
+          xcodebuild build -project ThousandCranes.xcodeproj -scheme ThousandCranes \
+            -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log | grep -E "error:|warning: unused|\*\* BUILD" || true
+          if ! grep -q "BUILD SUCCEEDED" build.log; then
+            msg=$(grep -E "error:" build.log | sort -u | head -n 40 | sed 's/%/%25/g' | awk '{printf "%s%%0A",$0}')
+            echo "::error title=컴파일 실패::$msg"
+            exit 1
+          fi
+          echo "::notice title=컴파일::성공"

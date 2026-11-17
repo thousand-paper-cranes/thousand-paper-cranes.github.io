@@ -31,6 +31,9 @@ R('테스트 도구 (프로토타입 전용)', '테스트 도구 (디버그 빌�
 R("  root.querySelectorAll('.modepick button')", "  if(IS_DEBUG){\n  root.querySelectorAll('.modepick button')")
 R("$('#tReset').textContent='한 번 더 누르면 모두 지워져요'; } };", "$('#tReset').textContent='한 번 더 누르면 모두 지워져요'; } };\n  }")
 R("let testMode=null; try{", "let testMode=null; if(IS_DEBUG) try{")
+# 상태를 네이티브에도 복사 (iOS: 위젯·알림·기록 백업. Android에는 아직 없음)
+R("function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }",
+  "function save(){ const j=JSON.stringify(S); try{ localStorage.setItem(KEY, j); }catch(e){} try{ if(NATIVE&&NATIVE.saveState) NATIVE.saveState(j); }catch(e){} }")
 R("if(navigator.vibrate) try{navigator.vibrate(12);}catch(e){}", "haptic(12);")
 R("  S.papers.splice(idx,1); S.cranes.push(key);", "  haptic(30);\n  S.papers.splice(idx,1); S.cranes.push(key);")
 # 광고
