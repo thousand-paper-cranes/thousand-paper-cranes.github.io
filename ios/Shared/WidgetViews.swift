@@ -29,8 +29,8 @@ struct JarView: View {
         Canvas { ctx, size in
             let w = size.width, h = size.height
             let lidH = h * 0.09
-            let body = CGRect(x: w * 0.04, y: lidH + h * 0.05, width: w * 0.92, height: h * 0.86 - lidH)
-            let jar = Path(roundedRect: body, cornerRadius: w * 0.14)
+            let body = CGRect(x: w * 0.04, y: lidH + h * 0.14, width: w * 0.92, height: h * 0.84 - lidH)
+            let jar = jarPath(w: w, h: h, lidH: lidH, body: body)
 
             // 학: 통 바닥부터, 1000마리면 가득 차는 높이까지
             let fill = min(1, Double(cranes.count) / Double(Shared.goal))
@@ -64,8 +64,30 @@ struct JarView: View {
             ctx.fill(Path(roundedRect: CGRect(x: body.minX + w * 0.07, y: body.minY + h * 0.08, width: w * 0.035, height: body.height * 0.55),
                           cornerRadius: 2), with: .color(.white.opacity(0.45)))
             // 뚜껑
-            ctx.fill(Path(roundedRect: CGRect(x: w * 0.2, y: 0, width: w * 0.6, height: lidH + h * 0.06), cornerRadius: 3), with: .color(.lid))
+            ctx.fill(Path(roundedRect: CGRect(x: w * 0.2, y: 0, width: w * 0.6, height: lidH + h * 0.04), cornerRadius: 3), with: .color(.lid))
         }
+    }
+
+    /// 앱의 유리병과 같은 모양: 좁은 입구 → 둥근 어깨 → 몸통
+    private func jarPath(w: CGFloat, h: CGFloat, lidH: CGFloat, body: CGRect) -> Path {
+        let neckL = w * 0.24, neckR = w * 0.76, top = lidH + h * 0.02
+        let r = min(w * 0.14, body.height * 0.2)
+        var p = Path()
+        p.move(to: CGPoint(x: neckL, y: top))
+        p.addLine(to: CGPoint(x: neckR, y: top))
+        p.addCurve(to: CGPoint(x: body.maxX, y: body.minY + r * 0.6),
+                   control1: CGPoint(x: neckR + w * 0.02, y: body.minY - h * 0.02),
+                   control2: CGPoint(x: body.maxX, y: body.minY - h * 0.01))
+        p.addLine(to: CGPoint(x: body.maxX, y: body.maxY - r))
+        p.addQuadCurve(to: CGPoint(x: body.maxX - r, y: body.maxY), control: CGPoint(x: body.maxX, y: body.maxY))
+        p.addLine(to: CGPoint(x: body.minX + r, y: body.maxY))
+        p.addQuadCurve(to: CGPoint(x: body.minX, y: body.maxY - r), control: CGPoint(x: body.minX, y: body.maxY))
+        p.addLine(to: CGPoint(x: body.minX, y: body.minY + r * 0.6))
+        p.addCurve(to: CGPoint(x: neckL, y: top),
+                   control1: CGPoint(x: body.minX, y: body.minY - h * 0.01),
+                   control2: CGPoint(x: neckL - w * 0.02, y: body.minY - h * 0.02))
+        p.closeSubpath()
+        return p
     }
 
     /// 아주 작은 종이학 (몸통 + 날개 두 장 + 목·꼬리)
@@ -98,7 +120,7 @@ struct CraneWidgetView: View {
         Group {
             if s.wish.isEmpty {
                 VStack(spacing: 6) {
-                    JarView(cranes: []).frame(width: 46, height: 60)
+                    JarView(cranes: []).frame(width: 48, height: 60)
                     Text("소원을 적고\n첫 학을 접어요").font(.system(size: 13, weight: .semibold)).multilineTextAlignment(.center)
                         .foregroundStyle(Color.ink)
                 }
@@ -113,7 +135,7 @@ struct CraneWidgetView: View {
 
     private var small: some View {
         VStack(spacing: 4) {
-            JarView(cranes: s.cranes).frame(maxWidth: .infinity).frame(height: 84)
+            JarView(cranes: s.cranes).frame(width: 70, height: 88)
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text("\(count)").font(.system(size: 20, weight: .bold, design: .serif)).monospacedDigit()
                 Text("/ 1000").font(.system(size: 11)).foregroundStyle(Color.muted)
@@ -127,7 +149,7 @@ struct CraneWidgetView: View {
 
     private var medium: some View {
         HStack(spacing: 14) {
-            JarView(cranes: s.cranes).frame(width: 92)
+            JarView(cranes: s.cranes).frame(width: 96, height: 124)
             VStack(alignment: .leading, spacing: 6) {
                 Text(s.wish)
                     .font(.system(size: 15, weight: .semibold, design: .serif))
@@ -141,7 +163,13 @@ struct CraneWidgetView: View {
                     Text("/ 1000마리").font(.system(size: 12)).foregroundStyle(Color.muted)
                 }
                 .foregroundStyle(Color.ink)
-                ProgressView(value: Double(min(count, Shared.goal)), total: Double(Shared.goal)).tint(Color.accent)
+                GeometryReader { g in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color.muted.opacity(0.25))
+                        Capsule().fill(Color.accent).frame(width: max(4, g.size.width * CGFloat(min(count, Shared.goal)) / CGFloat(Shared.goal)))
+                    }
+                }
+                .frame(height: 4)
                 Text(s.paperWaiting ? "오늘의 색종이 5장이 도착했어요" : (count >= Shared.goal ? "소원이 이루어지길 바랍니다" : "천 마리까지 \(Shared.goal - count)마리 · 색종이 \(s.papers.count)장"))
                     .font(.system(size: 11, weight: s.paperWaiting ? .semibold : .regular))
                     .foregroundStyle(s.paperWaiting ? Color.accent : Color.muted)
