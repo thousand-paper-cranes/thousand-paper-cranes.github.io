@@ -60,6 +60,11 @@ jobs:
           xcrun simctl terminate "$UDID" com.ohsang.util.thousandcranes; sleep 1
           xcrun simctl launch "$UDID" com.ohsang.util.thousandcranes; sleep 6
           xcrun simctl io "$UDID" screenshot shots/6-relaunch.png
+          # 위젯 화면 그리기 (디버그 전용 CRANE_WIDGETSHOT)
+          xcrun simctl terminate "$UDID" com.ohsang.util.thousandcranes; sleep 1
+          SIMCTL_CHILD_CRANE_WIDGETSHOT=1 xcrun simctl launch "$UDID" com.ohsang.util.thousandcranes; sleep 6
+          DATA=$(xcrun simctl get_app_container "$UDID" com.ohsang.util.thousandcranes data)
+          cp "$DATA"/Documents/widget-*.png shots/ || echo "위젯 그림 없음"
           # 위젯과 나누는 App Group 상태
           GROUP=$(xcrun simctl get_app_container "$UDID" com.ohsang.util.thousandcranes groups | awk '/group.com.ohsang.util.thousandcranes/{print $2}')
           plutil -p "$GROUP/Library/Preferences/group.com.ohsang.util.thousandcranes.plist" 2>/dev/null | head -c 600 > shots/app-group.txt || echo "없음" > shots/app-group.txt

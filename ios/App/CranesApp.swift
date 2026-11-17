@@ -20,6 +20,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         UNUserNotificationCenter.current().delegate = Reminders.shared
         MobileAds.shared.start(completionHandler: nil)
+        #if DEBUG
+        DispatchQueue.main.async { WidgetShots.renderIfRequested() }
+        #endif
         return true
     }
 }
