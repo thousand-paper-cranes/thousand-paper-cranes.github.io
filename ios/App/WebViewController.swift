@@ -67,10 +67,19 @@ final class WebViewController: UIViewController, WKNavigationDelegate, WKScriptM
             web.loadFileURL(dir.appendingPathComponent("index.html"), allowingReadAccessTo: dir)
         }
         light.prepare()
-        // 광고는 미리 불러 둔다 (추적 허용 질문은 광고 버튼을 처음 누를 때 한다)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { Ads.shared.preload() }
         NotificationCenter.default.addObserver(self, selector: #selector(becameActive),
                                                name: UIApplication.didBecomeActiveNotification, object: nil)
+    }
+
+    private var askedTracking = false
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // 앱이 화면에 뜨자마자 추적 허용을 먼저 묻고, 답을 받은 뒤에 광고 SDK를 시작한다.
+        // (iOS는 앱이 활성 상태일 때만 이 창을 띄운다)
+        guard !askedTracking else { return }
+        askedTracking = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { Ads.shared.startAfterTrackingPrompt() }
     }
 
     @objc private func becameActive() {

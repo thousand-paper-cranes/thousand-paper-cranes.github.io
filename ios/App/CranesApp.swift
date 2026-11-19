@@ -19,7 +19,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         UNUserNotificationCenter.current().delegate = Reminders.shared
-        MobileAds.shared.start(completionHandler: nil)
+        // 광고 SDK는 추적 허용 질문이 끝난 뒤에 시작한다 (Ads.startAfterTrackingPrompt)
         #if DEBUG
         DispatchQueue.main.async { WidgetShots.renderIfRequested() }
         #endif
